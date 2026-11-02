@@ -7,7 +7,7 @@ hlt1 = ["B_Hlt1TrackMVADecision_TOS", "B_Hlt1TrackMuonMVADecision_TOS", "B_Hlt1T
 hlt2 = ["B_Hlt2_InclDetDiMuonDecision_TOS", "B_Hlt2_InclDetDiMuon_3BodyDecision_TOS",
       "B_Hlt2_InclDetDiMuon_4BodyDecision_TOS"] # contiene i nomi delle tre decisioni di trigger di hlt2
 branches = [
-    # ============================================================
+        # ============================================================
         # CANDIDATO B_s
         # ============================================================
         "B_MASS",          # massa ricostruita del candidato B_s
@@ -103,7 +103,7 @@ branches = [
         "L2_PY",
         "L2_PZ",
         "L2_ENERGY",
-]
+] # B_MVA e TURBO_BLOCK non sono presenti nella tupla. B_QSQ neanche ma lo costruisco io 
 
 d = t.arrays(
     branches + hlt1 + hlt2,
@@ -111,88 +111,84 @@ d = t.arrays(
     entry_stop=200000
 ) 
 
-print("eventi:", t.num_entries)
+print("candidati totali nel tree:", t.num_entries)
 
-# controllo quali variabili esistono 
+""" # controllo quali variabili esistono 
 voluti = ["Phi_MASS", "B_MVA", "B_QSQ", "TURBO_BLOCK", "H1_PROBNN_K", "L1_PT", "B_PT"]
 for nome in voluti:
-    print(nome, "OK" if nome in t.keys() else "MANCA")
+    print(nome, "OK" if nome in t.keys() else "MANCA") """
 
 # stampa tutti i branch con MASS nel nome
 # print([k for k in t.keys() if "MASS" in k])
 
-
 # aggiungo un cut alla volta
-c1 = np.abs(d["Phi_MASS"] - 1019.46) < 12              # cut sul phi (i due K vengono dal phi solo se la loro massa inv è vicina alla massa del phi)
-c2 = np.minimum(d["H1_PT"], d["H2_PT"]) > 250          # PT minimo dei due kaoni (cioè entrambi sopra 250)
-c3 = np.minimum(d["L1_PT"], d["L2_PT"]) > 100          # PT minimo dei due muoni
-c4 = np.minimum(d["H1_PROBNN_K"], d["H2_PROBNN_K"]) > 0.025   # pid
-c5 = d["B_BPVDIRA"] > 0.9995                                   # richiede che il Bs punti bene verso il PV da cui proviene
-c6 = d["B_CHI2NDOF"] < 20                                       # qualità del vertice ricostruito del Bs
-c7 = np.minimum(d["H1_PID_K"], d["H2_PID_K"]) > -10.0              # PID dei kaoni
-c8 = np.minimum(d["L1_PROBNN_MU"], d["L2_PROBNN_MU"]) > 0.05       # ProbNN dei muoni
-c9 = np.minimum(d["L1_PID_MU"], d["L2_PID_MU"]) > -3.0             # PID dei muoni
-pid_tutti = c4 & c7 & c8 & c9
+# ============================================================
+# TAGLI SUI DUE KAONI: H1 e H2
+# ============================================================
 
-c10 = np.minimum(d["H1_P"], d["H2_P"]) > 0.0                        # impulso totale dei due kaoni
-c11 = np.minimum(np.abs(d["H1_ETA"]), np.abs(d["H2_ETA"])) > 1.0    # eta minima dei kaoni
-c12 = np.maximum(np.abs(d["H1_ETA"]), np.abs(d["H2_ETA"])) < 6.0    # eta massima dei kaoni
-c13 = np.minimum(d["H1_BPVIPCHI2"], d["H2_BPVIPCHI2"]) > 6.0        # IPCHI2 dei kaoni (misura quanto una traccia è incompatibile col venire dal PV)
-c14 = np.maximum(d["H1_CHI2NDOF"], d["H2_CHI2NDOF"]) < 4.0          # qualità delle tracce dei kaoni
-c15 = np.maximum(d["H1_PROBNN_GHOST"], d["H2_PROBNN_GHOST"]) < 0.5  # probabilità di traccia ghost
+cut_k_pt = np.minimum(d["H1_PT"], d["H2_PT"]) > 250.0 # entrambi i kaoni devono avere PT > 250 MeV
+cut_k_p = np.minimum(d["H1_P"], d["H2_P"]) > 0.0 # entrambi i kaoni devono avere impulso totale positivo
+cut_k_eta_min = np.minimum( np.abs(d["H1_ETA"]), np.abs(d["H2_ETA"])) > 1.0 # entrambi i k devono avere |eta| > 1
+cut_k_eta_max = np.maximum( np.abs(d["H1_ETA"]), np.abs(d["H2_ETA"])) < 6.0 # entrambi i k devono avere |eta| < 6
+cut_k_ipchi2 = np.minimum( d["H1_BPVIPCHI2"], d["H2_BPVIPCHI2"]) > 6.0 # entrambi i kaoni devono essere incompatibili con il provenire dal PV
+cut_k_chi2 = np.maximum( d["H1_CHI2NDOF"], d["H2_CHI2NDOF"]) < 4.0 # entrambe le tracce dei kaoni devono avere buona qualità
+cut_k_ghost = np.maximum( d["H1_PROBNN_GHOST"], d["H2_PROBNN_GHOST"]) < 0.5 # entrambe le tracce devono avere probabilità ghost < 0.5
+cut_k_probnn = np.minimum( d["H1_PROBNN_K"], d["H2_PROBNN_K"]) > 0.025 # entrambi i k devono essere compatibili con l'ipotesi di kaone
+cut_k_pid = np.minimum( d["H1_PID_K"], d["H2_PID_K"] ) > -10.0 # entrambi i k devono superare il requisito PID del kaone
 
-# tagli aggiuntivi sui muoni
-c16 = np.minimum(d["L1_P"], d["L2_P"]) > 0.0                        # impulso totale dei due muoni
-c17 = np.minimum(np.abs(d["L1_ETA"]), np.abs(d["L2_ETA"])) > 1.0    # eta minima dei muoni
-c18 = np.maximum(np.abs(d["L1_ETA"]), np.abs(d["L2_ETA"])) < 6.0    # eta massima dei muoni
-c19 = np.minimum(d["L1_BPVIPCHI2"], d["L2_BPVIPCHI2"]) > 2.0        # IPCHI2 dei muoni
-c20 = np.maximum(d["L1_CHI2NDOF"], d["L2_CHI2NDOF"]) < 4.0          # qualità delle tracce dei muoni
-c21 = np.maximum(d["L1_PROBNN_GHOST"], d["L2_PROBNN_GHOST"]) < 0.5  # probabilità di traccia ghost
+# ============================================================
+# TAGLI SUI DUE MUONI: L1 e L2
+# ============================================================
 
-# tagli aggiuntivi su B_s
-c22 = d["B_PT"] > 0.0                    # impulso trasverso del B_s positivo
-c23 = d["B_P"] > 0.0                     # impulso totale del B_s positivo
-c24 = d["B_PT"] < 100000.0               # limite superiore sul PT del B_s
-c25 = d["B_BPVFDCHI2"] > 10.0            # significatività della distanza di volo dal PV
-c26 = d["B_BPVIPCHI2"] < 100000.0        # IPCHI2 del B_s rispetto al PV
+cut_mu_pt = np.minimum(d["L1_PT"], d["L2_PT"]) > 100.0 # entrambi i muoni devono avere PT > 100 MeV
+cut_mu_p = np.minimum(d["L1_P"], d["L2_P"]) > 0.0 # entrambi i muoni devono avere impulso totale positivo
+cut_mu_eta_min = np.minimum(np.abs(d["L1_ETA"]), np.abs(d["L2_ETA"])) > 1.0# entrambi i mu devono avere |eta| > 1
+cut_mu_eta_max = np.maximum(np.abs(d["L1_ETA"]), np.abs(d["L2_ETA"])) < 6.0 # entrambi i muo devono avere |eta| < 6
+cut_mu_ipchi2 = np.minimum(d["L1_BPVIPCHI2"], d["L2_BPVIPCHI2"]) > 2.0 # entrambi i muoni devono essere incompatibili con il provenire dal PV
+cut_mu_chi2 = np.maximum(d["L1_CHI2NDOF"], d["L2_CHI2NDOF"]) < 4.0# entrambe le tracce dei muoni devono avere buona qualità
+cut_mu_ghost = np.maximum(d["L1_PROBNN_GHOST"], d["L2_PROBNN_GHOST"]) < 0.5 # entrambe le tracce devono avere probabilità ghost < 0.5
+cut_mu_probnn = np.minimum(d["L1_PROBNN_MU"], d["L2_PROBNN_MU"]) > 0.05 # entrambi i mu devono essere compatibili con l'ipotesi di muone
+cut_mu_pid = np.minimum(d["L1_PID_MU"], d["L2_PID_MU"]) > -3.0 # entrambi i mu devono superare il requisito PID del muone
 
-# tagli sul sistema dimuonico Jps -> mu+ mu-
-c27 = d["Jps_PT"] > 0.0               # impulso trasverso del sistema dimuonico
-c28 = d["Jps_DOCACHI2"] < 36.0        # compatibilità geometrica tra le due tracce dei muoni
-c29 = d["Jps_CHI2NDOF"] < 30.0        # qualità del vertice formato dai due muoni
-c30 = d["Jps_BPVFDCHI2"] > 0.0        # distanza di volo del sistema dimuonico rispetto al PV
+# ============================================================
+# TAGLI SUL CANDIDATO B_s
+# ============================================================
 
-# tagli sul candidato Phi -> K+ K-
-c31 = d["Phi_PT"] > 600.0             # impulso trasverso della Phi maggiore di 600 MeV
-c32 = d["Phi_CHI2NDOF"] < 16.0        # qualità del vertice formato dai due kaoni
-c33 = d["Phi_DOCACHI2"] < 10.0        # compatibilità geometrica tra le due tracce dei kaoni
-c34 = d["Phi_DOCA"] < 0.5             # distanza minima tra le due tracce dei kaoni
-c35 = d["Phi_BPVIPCHI2"] > 0.0        # IP chi2 della Phi rispetto al PV
+cut_b_pt_min = d["B_PT"] > 0.0 # impulso trasverso del B_s positivo
+cut_b_p = d["B_P"] > 0.0 # impulso totale del B_s positivo
+cut_b_pt_max = d["B_PT"] < 100000.0 # limite superiore molto largo sul PT del B_s
+cut_b_fdchi2 = d["B_BPVFDCHI2"] > 10.0 # decadimento del B_s significativamente separato dal PV
+cut_b_chi2 = d["B_CHI2NDOF"] < 20.0 # buona qualità del vertice di decadimento del B_s
+cut_b_dira = d["B_BPVDIRA"] > 0.9995 # impulso del B_s allineato con la direzione PV -> vertice di decadimento
+cut_b_ipchi2 = d["B_BPVIPCHI2"] < 100000.0 # limite superiore molto largo sull'IP chi2 del B_s
+# B_MVA > 0.9355 non applicato: il branch B_MVA non è presente nella tupla
 
-# Il taglio TURBO_BLOCK == 2 non viene applicato:
-# il branch TURBO_BLOCK non e presente nella tupla.                       
+# ============================================================
+# TAGLI SUL SISTEMA DIMUONICO: Jps -> mu+ mu-
+# ============================================================
+
+cut_jps_pt = d["Jps_PT"] > 0.0 # impulso trasverso del sistema dimuonico positivo
+cut_jps_docachi2 = d["Jps_DOCACHI2"] < 36.0 # compatibilità geometrica tra le due tracce dei muoni
+cut_jps_chi2 = d["Jps_CHI2NDOF"] < 30.0 # qualità del vertice formato dai due muoni
+cut_jps_fdchi2 = d["Jps_BPVFDCHI2"] > 0.0 # significatività positiva della distanza di volo del dimuone
+
+# ============================================================
+# TAGLI SUL CANDIDATO PHI -> K+ K-
+# ============================================================
+
+cut_phi_mass = np.abs(d["Phi_MASS"] - 1019.46) < 12.0 # massa dei due kaoni entro 12 MeV dalla massa nominale della phi
+cut_phi_pt = d["Phi_PT"] > 600.0 # impulso trasverso della phi maggiore di 600 MeV
+cut_phi_chi2 = d["Phi_CHI2NDOF"] < 16.0 # qualità del vertice formato dai due kaoni
+cut_phi_docachi2 = d["Phi_DOCACHI2"] < 10.0 # compatibilità geometrica tra le due tracce dei kaoni
+cut_phi_doca = d["Phi_DOCA"] < 0.5 # distanza minima tra le due tracce dei kaoni
+cut_phi_ipchi2 = d["Phi_BPVIPCHI2"] > 0.0 # IP chi2 della phi rispetto al PV
+# TURBO_BLOCK == 2 non applicato: il branch TURBO_BLOCK non è presente nella tupla
+            
                                     
 q2 = d["Jps_MASS"]**2 / 1e6 # q^2 senza DTF. 1e6 serve per trasformare da mev2 a gev2
 q2_dtf = d["B_DTF_HEAD_Jps_MASS"]**2 / 1e6 # q^2 con DTF HEAD
 cq2 = (q2 > 0) & (q2 < 19) # taglio 0 < q^2 < 19 GeV^2 (per entrambi)
 cq2_dtf = (q2_dtf > 0) & (q2_dtf < 19)
-
-n = len(d["B_MASS"])                                   # candidati di partenza
-print("partenza:             ", n)
-print("solo finestra phi:    ", c1.sum(), f"({c1.mean():.1%})")
-print("solo PT kaoni:        ", c2.sum(), f"({c2.mean():.1%})")
-print("solo PT muoni:        ", c3.sum(), f"({c3.mean():.1%})")
-print("phi + PT kaoni:       ", (c1 & c2).sum(), f"({(c1 & c2).mean():.1%})") # (c1 & c2).sum() quanti passano entrambi, mean è la frazione 
-print("phi + kaoni + muoni:  ", (c1 & c2 & c3).sum(), f"({(c1 & c2 & c3).mean():.1%})")
-print("solo PROBNN_K:      ", c4.sum(), f"({c4.mean():.1%})")
-print("solo DIRA:          ", c5.sum(), f"({c5.mean():.1%})")
-print("solo CHI2NDOF:      ", c6.sum(), f"({c6.mean():.1%})")
-print("tutti insieme + phi:", (c1 & c4 & c5 & c6).sum(), f"({(c1 & c4 & c5 & c6).mean():.1%})")
-print("solo PID_K:          ", c7.sum(), f"({c7.mean():.1%})")
-print("solo PROBNN_MU:      ", c8.sum(), f"({c8.mean():.1%})")
-print("solo PID_MU:         ", c9.sum(), f"({c9.mean():.1%})")
-print("gruppo pid completo: ", pid_tutti.sum(), f"({pid_tutti.mean():.1%})")
-print("pid + phi:           ", (pid_tutti & c1).sum(), f"({(pid_tutti & c1).mean():.1%})")
 
 # trigger: ogni decisione da sola, poi OR e AND dentro ciascun gruppo
 for nome in hlt1 + hlt2:
@@ -205,81 +201,212 @@ tr2_and = np.all([d[n].astype(bool) for n in hlt2], axis=0)
 
 print("Hlt1 in OR: ", f"{tr1_or.mean():.1%}", "  Hlt1 in AND:", f"{tr1_and.mean():.1%}")
 print("Hlt2 in OR: ", f"{tr2_or.mean():.1%}", "  Hlt2 in AND:", f"{tr2_and.mean():.1%}")
-print("tutto (OR) + phi + PROBNN_K:", f"{(c1 & c4 & tr1_or & tr2_or).mean():.1%}")
+# print("tutto (OR) + phi + PROBNN_K:", f"{(c1 & c4 & tr1_or & tr2_or).mean():.1%}")
 
-tutti = c1 & c2 & c3 & c5 & c6 & pid_tutti & tr1_or & tr2_or # tutti i tagli messi insieme
-k = tutti.sum()              # quanti passano
+tagli = [
+    # kaoni
+    ("K PT", cut_k_pt),
+    ("K P", cut_k_p),
+    ("K eta min", cut_k_eta_min),
+    ("K eta max", cut_k_eta_max),
+    ("K IPCHI2", cut_k_ipchi2),
+    ("K CHI2NDOF", cut_k_chi2),
+    ("K ghost", cut_k_ghost),
+    ("K ProbNN", cut_k_probnn),
+    ("K PID", cut_k_pid),
+
+    # muoni
+    ("mu PT", cut_mu_pt),
+    ("mu P", cut_mu_p),
+    ("mu eta min", cut_mu_eta_min),
+    ("mu eta max", cut_mu_eta_max),
+    ("mu IPCHI2", cut_mu_ipchi2),
+    ("mu CHI2NDOF", cut_mu_chi2),
+    ("mu ghost", cut_mu_ghost),
+    ("mu ProbNN", cut_mu_probnn),
+    ("mu PID", cut_mu_pid),
+
+    # candidato B_s
+    ("B PT min", cut_b_pt_min),
+    ("B P", cut_b_p),
+    ("B PT max", cut_b_pt_max),
+    ("B FDCHI2", cut_b_fdchi2),
+    ("B CHI2NDOF", cut_b_chi2),
+    ("B DIRA", cut_b_dira),
+    ("B IPCHI2", cut_b_ipchi2),
+
+    # sistema dimuonico
+    ("Jps PT", cut_jps_pt),
+    ("Jps DOCACHI2", cut_jps_docachi2),
+    ("Jps CHI2NDOF", cut_jps_chi2),
+    ("Jps FDCHI2", cut_jps_fdchi2),
+
+    # candidato phi
+    ("Phi mass", cut_phi_mass),
+    ("Phi PT", cut_phi_pt),
+    ("Phi CHI2NDOF", cut_phi_chi2),
+    ("Phi DOCACHI2", cut_phi_docachi2),
+    ("Phi DOCA", cut_phi_doca),
+    ("Phi IPCHI2", cut_phi_ipchi2),
+]
+
+n = len(d["B_MASS"])                                   # candidati di partenza
+print("candidati analizzati:             ", n)
+"""print("solo finestra phi:    ", c1.sum(), f"({c1.mean():.1%})")
+print("solo PT kaoni:        ", c2.sum(), f"({c2.mean():.1%})")
+print("solo PT muoni:        ", c3.sum(), f"({c3.mean():.1%})")
+print("phi + PT kaoni:       ", (c1 & c2).sum(), f"({(c1 & c2).mean():.1%})") # (c1 & c2).sum() quanti passano entrambi, mean è la frazione 
+print("phi + kaoni + muoni:  ", (c1 & c2 & c3).sum(), f"({(c1 & c2 & c3).mean():.1%})")
+print("solo PROBNN_K:      ", c4.sum(), f"({c4.mean():.1%})")
+print("solo DIRA:          ", c5.sum(), f"({c5.mean():.1%})")
+print("solo CHI2NDOF:      ", c6.sum(), f"({c6.mean():.1%})")
+print("tutti insieme + phi:", (c1 & c4 & c5 & c6).sum(), f"({(c1 & c4 & c5 & c6).mean():.1%})")
+print("solo PID_K:          ", c7.sum(), f"({c7.mean():.1%})")
+print("solo PROBNN_MU:      ", c8.sum(), f"({c8.mean():.1%})")
+print("solo PID_MU:         ", c9.sum(), f"({c9.mean():.1%})")
+print("gruppo pid completo: ", pid_tutti.sum(), f"({pid_tutti.mean():.1%})")
+print("pid + phi:           ", (pid_tutti & c1).sum(), f"({(pid_tutti & c1).mean():.1%})") """
+
+mask = np.ones(n, dtype=bool)
+
+print("\nCUT CUMULATIVI")
+print(f"{'partenza':10s}: {n:8d}   {100.0:6.2f}%") #allinea le colonne
+
+for nome, cut in tagli:
+    mask &= cut # fa un and tra chi è sopravvissuto fino a quel momento e chi passa il nuovo taglio 
+
+    k = mask.sum() # conta i candidati rimasti 
+    eff = k / n # efficienza cumulativa 
+
+    print(f"{nome:10s}: {k:8d}   {100*eff:6.2f}%")
+
+# aggiungo HLT1 ai cut cumulativi
+mask &= tr1_or
+k = mask.sum()
+eff = k / n
+print(f"{'HLT1':10s}: {k:8d}   {100*eff:6.2f}%")
+
+# aggiungo HLT2 ai cut cumulativi
+mask &= tr2_or
+k = mask.sum()
+eff = k / n
+print(f"{'HLT2':10s}: {k:8d}   {100*eff:6.2f}%")
+
+# ============================================================
+# CUT CUMULATIVO RAGGRUPPATO
+# ============================================================
+
+mask = np.ones(n, dtype=bool)
+
+nomi_gruppi = ["Partenza"]
+n_gruppi = [n]
+
+# tutti i tagli sui kaoni
+for cut in [
+    cut_k_pt, cut_k_p, cut_k_eta_min, cut_k_eta_max,
+    cut_k_ipchi2, cut_k_chi2, cut_k_ghost,
+    cut_k_probnn, cut_k_pid
+]:
+    mask &= cut
+
+nomi_gruppi.append("Kaoni")
+n_gruppi.append(mask.sum())
+
+# tutti i tagli sui muoni
+for cut in [
+    cut_mu_pt, cut_mu_p, cut_mu_eta_min, cut_mu_eta_max,
+    cut_mu_ipchi2, cut_mu_chi2, cut_mu_ghost,
+    cut_mu_probnn, cut_mu_pid
+]:
+    mask &= cut
+
+nomi_gruppi.append("Muoni")
+n_gruppi.append(mask.sum())
+
+# tutti i tagli sul Bs
+for cut in [
+    cut_b_pt_min, cut_b_p, cut_b_pt_max,
+    cut_b_fdchi2, cut_b_chi2, cut_b_dira, cut_b_ipchi2
+]:
+    mask &= cut
+
+nomi_gruppi.append("Bs")
+n_gruppi.append(mask.sum())
+
+# tutti i tagli sul sistema dimuonico
+for cut in [
+    cut_jps_pt, cut_jps_docachi2,
+    cut_jps_chi2, cut_jps_fdchi2
+]:
+    mask &= cut
+
+nomi_gruppi.append("Dimuone")
+n_gruppi.append(mask.sum())
+
+# tutti i tagli sulla phi
+for cut in [
+    cut_phi_mass, cut_phi_pt, cut_phi_chi2,
+    cut_phi_docachi2, cut_phi_doca, cut_phi_ipchi2
+]:
+    mask &= cut
+
+nomi_gruppi.append("Phi")
+n_gruppi.append(mask.sum())
+
+# HLT1
+mask &= tr1_or
+nomi_gruppi.append("HLT1")
+n_gruppi.append(mask.sum())
+
+# HLT2
+mask &= tr2_or
+nomi_gruppi.append("HLT2")
+n_gruppi.append(mask.sum())
+
+# tutti = c1 & c2 & c3 & c5 & c6 & pid_tutti & tr1_or & tr2_or # tutti i tagli messi insieme
+tutti_comuni = (
+    cut_k_pt & cut_k_p & cut_k_eta_min & cut_k_eta_max & cut_k_ipchi2 & cut_k_chi2 & cut_k_ghost & cut_k_probnn & cut_k_pid &
+    cut_mu_pt & cut_mu_p & cut_mu_eta_min & cut_mu_eta_max & cut_mu_ipchi2 & cut_mu_chi2 & cut_mu_ghost & cut_mu_probnn & cut_mu_pid &
+    cut_b_pt_min & cut_b_p & cut_b_pt_max & cut_b_fdchi2 & cut_b_chi2 & cut_b_dira & cut_b_ipchi2 &
+    cut_jps_pt & cut_jps_docachi2 & cut_jps_chi2 & cut_jps_fdchi2 &
+    cut_phi_mass & cut_phi_pt & cut_phi_chi2 & cut_phi_docachi2 & cut_phi_doca & cut_phi_ipchi2 &
+    tr1_or & tr2_or
+)
+k = tutti_comuni.sum()              # quanti passano
 eff = k / n                  # efficienza
 err = np.sqrt(eff * (1 - eff) / n)   # errore
+eff_gruppi = np.array(n_gruppi) / n # eff di ogni gruppo 
 
-print("passano:", k, "su", n)
+print("passano con tutti i cut comuni:", k, "su", n)
 print(f"efficienza = {eff:.4f} +- {err:.4f}")
-
-
-# print([k for k in t.keys() if "DTF" in k and "MASS" in k])
-
-# print(np.allclose(d["Jps_MASS"], d["B_DTF_PV_Jps_MASS"]))
-# print(np.allclose(d["Jps_MASS"], d["B_DTF_HEAD_Jps_MASS"]))
-
-# print([k for k in t.keys() if k.startswith("L1_P") or k.startswith("L1_E")])
-E  = d["L1_ENERGY"].astype(float) + d["L2_ENERGY"]
-px = d["L1_PX"].astype(float) + d["L2_PX"]
-py = d["L1_PY"].astype(float) + d["L2_PY"]
-pz = d["L1_PZ"].astype(float) + d["L2_PZ"]
-m_mumu = np.sqrt(E**2 - px**2 - py**2 - pz**2)
-
-# fa jps_mass - ricacolata e pv - ricalcolata e poi calcola media e dev std
-diff_nodtf = d["Jps_MASS"] - m_mumu
-diff_dtf   = d["B_DTF_PV_Jps_MASS"] - m_mumu
-for nome, diff in [("Jps_MASS - ricalcolata", diff_nodtf),
-                   ("DTF_PV - ricalcolata  ", diff_dtf)]:
-    print(f"{nome}: media = {diff.mean():.4f} MeV, std = {diff.std():.3f} MeV, "
-          f"entro 0.5 MeV: {(np.abs(diff) < 0.5).mean():.1%}")
-
-masse = {
-    "Jps_MASS":            d["Jps_MASS"],
-    "ricalcolata (muoni)": m_mumu,
-    "B_DTF_PV_Jps_MASS":   d["B_DTF_PV_Jps_MASS"],
-    "B_DTF_HEAD_Jps_MASS": d["B_DTF_HEAD_Jps_MASS"],
-    "B_DTF_Jps_Jps_MASS":  d["B_DTF_Jps_Jps_MASS"],
-    "B_DTF_Psi_Jps_MASS":  d["B_DTF_Psi_Jps_MASS"],
-}
-
-fig, ax = plt.subplots(1, 2, figsize=(13, 5))
-for nome, m in masse.items():
-    ax[0].hist(m, bins=200, range=(2900, 3800), histtype="step", label=nome)  # vista larga
-    ax[1].hist(m, bins=100, range=(3000, 3200), histtype="step", label=nome)  # zoom sulla J/psi
-ax[0].set_yscale("log")
-for a in ax:
-    a.set_xlabel("m(mumu) [MeV]")
-    a.legend(fontsize=8)
-fig.tight_layout()
-fig.savefig("confronto_masse_dimuone.png")
-
-"""fig, ax = plt.subplots(1, 2, figsize=(13, 5))
-
-# sinistra: le tre masse, blu spessa sotto e arancione tratteggiata sopra
-r = (3000, 3200)
-ax[0].hist(d["Jps_MASS"], bins=100, range=r, histtype="step", lw=4, alpha=0.5, label="Jps_MASS")
-ax[0].hist(m_mumu, bins=100, range=r, histtype="step", ls="--", label="ricalcolata (muoni)")
-ax[0].hist(d["B_DTF_PV_Jps_MASS"], bins=100, range=r, histtype="step", label="B_DTF_PV_Jps_MASS")
-ax[0].set_xlabel("m(mumu) [MeV]"); ax[0].legend(fontsize=8)
-
-# destra: differenze candidato per candidato rispetto alla ricalcolata
-ax[1].hist(d["Jps_MASS"] - m_mumu, bins=100, range=(-5, 5), histtype="step", label="Jps_MASS - ricalcolata")
-ax[1].hist(d["B_DTF_PV_Jps_MASS"] - m_mumu, bins=100, range=(-5, 5), histtype="step", label="DTF_PV - ricalcolata")
-ax[1].set_xlabel("differenza [MeV]"); ax[1].set_yscale("log"); ax[1].legend(fontsize=8)
-
-fig.tight_layout()
-fig.savefig("confronto_ricalcolata.png")"""
 
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 4)) # fa due plot affiancati 
 ax[0].hist(d["Jps_MASS"], bins=80, range=(2500, 3500), histtype="step", label="prima") # prima tutti i candidati
-ax[0].hist(d["Jps_MASS"][c1], bins=80, range=(2500, 3500), histtype="step", label="dopo") # dopo solo quelli che passano c1
+ax[0].hist(d["Jps_MASS"][tutti_comuni], bins=80, range=(2500, 3500), histtype="step", label="dopo") # dopo solo quelli che passano tutti_comuni
 ax[0].set_xlabel("Jps_MASS [MeV]"); ax[0].legend()
+ax[0].set_ylabel("Candidati")
 ax[1].hist(d["B_MASS"], bins=80, range=(5100, 5700), histtype="step", label="prima")
-ax[1].hist(d["B_MASS"][c1], bins=80, range=(5100, 5700), histtype="step", label="dopo")
+ax[1].hist(d["B_MASS"][tutti_comuni], bins=80, range=(5100, 5700), histtype="step", label="dopo")
 ax[1].set_xlabel("B_MASS [MeV]"); ax[1].legend()
-fig.savefig("mc_spruce.png")
+ax[1].set_ylabel("Candidati")
+fig.savefig("mc_spruce_tutti_cut.png")
+
+
+plt.figure(figsize=(9, 5))
+
+plt.plot(
+    nomi_gruppi,
+    100 * eff_gruppi,
+    marker="o"
+)
+
+plt.ylabel("Efficienza cumulativa [%]")
+plt.xlabel("Selezione")
+plt.ylim(0, 105)
+
+plt.grid(axis="y", alpha=0.3)
+
+plt.tight_layout()
+plt.savefig("cut_cumulativo_mc_spruce.png", dpi=150)
 
