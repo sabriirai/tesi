@@ -191,16 +191,16 @@ cq2 = (q2 > 0) & (q2 < 19) # taglio 0 < q^2 < 19 GeV^2 (per entrambi)
 cq2_dtf = (q2_dtf > 0) & (q2_dtf < 19)
 
 # trigger: ogni decisione da sola, poi OR e AND dentro ciascun gruppo
-for nome in hlt1 + hlt2:
-    print(f"{nome:42s}", f"{d[nome].astype(bool).mean():.1%}")
+#for nome in hlt1 + hlt2:
+#    print(f"{nome:42s}", f"{d[nome].astype(bool).mean():.1%}")
 
 tr1_or  = np.any([d[n].astype(bool) for n in hlt1], axis=0) # np.any fa l'or riga per riga tra gli array della lista
-tr1_and = np.all([d[n].astype(bool) for n in hlt1], axis=0) # np.all fa l'and
+# tr1_and = np.all([d[n].astype(bool) for n in hlt1], axis=0) # np.all fa l'and
 tr2_or  = np.any([d[n].astype(bool) for n in hlt2], axis=0)
-tr2_and = np.all([d[n].astype(bool) for n in hlt2], axis=0)
+# tr2_and = np.all([d[n].astype(bool) for n in hlt2], axis=0)
 
-print("Hlt1 in OR: ", f"{tr1_or.mean():.1%}", "  Hlt1 in AND:", f"{tr1_and.mean():.1%}")
-print("Hlt2 in OR: ", f"{tr2_or.mean():.1%}", "  Hlt2 in AND:", f"{tr2_and.mean():.1%}")
+# print("Hlt1 in OR: ", f"{tr1_or.mean():.1%}", "  Hlt1 in AND:", f"{tr1_and.mean():.1%}")
+# print("Hlt2 in OR: ", f"{tr2_or.mean():.1%}", "  Hlt2 in AND:", f"{tr2_and.mean():.1%}")
 # print("tutto (OR) + phi + PROBNN_K:", f"{(c1 & c4 & tr1_or & tr2_or).mean():.1%}")
 
 tagli = [
@@ -292,10 +292,7 @@ k = mask.sum()
 eff = k / n
 print(f"{'HLT2':10s}: {k:8d}   {100*eff:6.2f}%")
 
-# ============================================================
-# CUT CUMULATIVO RAGGRUPPATO
-# ============================================================
-
+# cut cumulativo diviso in gruppi di particelle
 mask = np.ones(n, dtype=bool)
 
 nomi_gruppi = ["Partenza"]
@@ -370,8 +367,8 @@ tutti_comuni = (
     cut_b_pt_min & cut_b_p & cut_b_pt_max & cut_b_fdchi2 & cut_b_chi2 & cut_b_dira & cut_b_ipchi2 &
     cut_jps_pt & cut_jps_docachi2 & cut_jps_chi2 & cut_jps_fdchi2 &
     cut_phi_mass & cut_phi_pt & cut_phi_chi2 & cut_phi_docachi2 & cut_phi_doca & cut_phi_ipchi2 &
-    tr1_or & tr2_or
-)
+    tr1_or & tr2_or )
+
 k = tutti_comuni.sum()              # quanti passano
 eff = k / n                  # efficienza
 err = np.sqrt(eff * (1 - eff) / n)   # errore
@@ -379,6 +376,68 @@ eff_gruppi = np.array(n_gruppi) / n # eff di ogni gruppo
 
 print("passano con tutti i cut comuni:", k, "su", n)
 print(f"efficienza = {eff:.4f} +- {err:.4f}")
+
+# efficienza relativa dei singoli tagli 
+mask = np.ones(n, dtype=bool)
+
+print("\nEFFICIENZE RELATIVE")
+print(f"{'taglio':16s} {'prima':>10s} {'dopo':>10s} {'eff.rel.':>10s}")
+
+for nome, cut in tagli:
+
+    n_prima = mask.sum()      # candidati prima di applicare questo taglio
+    mask &= cut               # applico il taglio
+    n_dopo = mask.sum()       # candidati rimasti
+
+    eff_rel = n_dopo / n_prima
+    print(
+        f"{nome:16s} "
+        f"{n_prima:10d} "
+        f"{n_dopo:10d} "
+        f"{100*eff_rel:9.2f}%"
+    )
+
+# aggiungo HLT1
+n_prima = mask.sum()
+mask &= tr1_or
+n_dopo = mask.sum()
+eff_rel = n_dopo / n_prima
+
+print(
+    f"{'HLT1':16s} "
+    f"{n_prima:10d} "
+    f"{n_dopo:10d} "
+    f"{100*eff_rel:9.2f}%"
+)
+
+# aggiuno HLT2
+n_prima = mask.sum()
+mask &= tr2_or
+n_dopo = mask.sum()
+eff_rel = n_dopo / n_prima
+
+print(
+    f"{'HLT2':16s} "
+    f"{n_prima:10d} "
+    f"{n_dopo:10d} "
+    f"{100*eff_rel:9.2f}%"
+)
+
+print("\nTAGLIO q2") # taglio q2 preso da solo sui 200000 candidati 
+
+print(
+    "senza DTF:",
+    cq2.sum(),
+    "su", n,
+    f"({cq2.mean():.2%})"
+)
+
+print(
+    "DTF HEAD:",
+    cq2_dtf.sum(),
+    "su", n,
+    f"({cq2_dtf.mean():.2%})"
+)
 
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 4)) # fa due plot affiancati 
@@ -410,3 +469,27 @@ plt.grid(axis="y", alpha=0.3)
 plt.tight_layout()
 plt.savefig("cut_cumulativo_mc_spruce.png", dpi=150)
 
+plt.figure(figsize=(8, 5))
+
+plt.hist(
+    q2,
+    bins=100,
+    range=(8, 11),
+    histtype="step",
+    label="no DTF"
+)
+
+plt.hist(
+    q2_dtf,
+    bins=100,
+    range=(8, 11),
+    histtype="step",
+    label="DTF HEAD"
+)
+
+plt.xlabel(r"$q^2$ [GeV$^2$]")
+plt.ylabel("Candidati")
+plt.legend()
+
+plt.tight_layout()
+plt.savefig("q2_dtf_vs_nodtf.png", dpi=150)
