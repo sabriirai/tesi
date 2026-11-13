@@ -439,6 +439,24 @@ print(
     f"({cq2_dtf.mean():.2%})"
 )
 
+# selezioni finali
+selezione_nodtf = tutti_comuni & cq2
+selezione_dtf = tutti_comuni & cq2_dtf
+
+n_comuni = tutti_comuni.sum()
+k_nodtf = selezione_nodtf.sum()
+k_dtf = selezione_dtf.sum()
+
+print("EFFETTO DEL TAGLIO q2 DOPO I CUT COMUNI")
+print(f"senza DTF: {k_nodtf}/{n_comuni} = {k_nodtf/n_comuni:.2%}")
+print(f"DTF HEAD:  {k_dtf}/{n_comuni} = {k_dtf/n_comuni:.2%}")
+
+# efficienze totali finali e incertezza binomiale
+for nome, k_finale in [("no DTF", k_nodtf), ("DTF HEAD", k_dtf)]:
+    eff_finale = k_finale / n
+    err_finale = np.sqrt(eff_finale * (1.0 - eff_finale) / n)
+    print(f"{nome}: {k_finale}/{n} = {eff_finale:.4f} +- {err_finale:.4f}")
+
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 4)) # fa due plot affiancati 
 ax[0].hist(d["Jps_MASS"], bins=80, range=(2500, 3500), histtype="step", label="prima") # prima tutti i candidati
